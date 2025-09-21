@@ -1,0 +1,162 @@
+import React, { useEffect, useState, useRef } from "react";
+
+function App() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState("list"); // list or grid
+  const [visibleCount, setVisibleCount] = useState(10);
+  const loaderRef = useRef(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = () => {
+    setLoading(true);
+    setError(null);
+    fetch("https://jsonplaceholder.typicode.com/posts")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch data");
+        return res.json();
+      })
+      .then((data) => {
+        setPosts(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  };
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 5);
+        }
+      },
+      { threshold: 1 }
+    );
+    if (loaderRef.current) observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const filteredPosts = posts.filter((post) =>
+    post.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const displayedPosts = filteredPosts.slice(0, visibleCount);
+
+  return (
+    <div className="min-h-screen bg-gray-100 py-6 px-4">
+      <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-lg p-6">
+        <h1 className="text-3xl font-bold text-center mb-6 text-indigo-700">
+          📚 Posts Explorer
+        </h1>
+
+        {/* Search + Toggle */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3">
+          <div className="flex w-full sm:w-2/3">
+            <input
+              type="text"
+              placeholder="🔍 Search posts by title..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-grow border px-3 py-2 rounded-l-md focus:ring-2 focus:ring-indigo-300 outline-none"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="bg-red-500 text-white px-4 rounded-r-md"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setView(view === "list" ? "grid" : "list")}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md shadow-md"
+          >
+            {view === "list" ? "🔲 Grid View" : "📋 List View"}
+          </button>
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex justify-center items-center py-10">
+            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="ml-3 text-indigo-600 font-medium">
+              Loading posts...
+            </span>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="text-center text-red-600 p-4">
+            <p>❌ {error}</p>
+            <button
+              onClick={fetchData}
+              className="mt-3 px-4 py-2 bg-red-500 text-white rounded-md"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Posts */}
+        {!loading && !error && (
+          <>
+            {filteredPosts.length === 0 ? (
+              <p className="text-center text-gray-600 mt-6">
+                😢 No posts match your search.
+              </p>
+            ) : (
+              <div
+                className={
+                  view === "grid"
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                    : "space-y-4"
+                }
+              >
+                {displayedPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="border rounded-lg p-4 shadow hover:shadow-lg transition bg-white"
+                  >
+                    <h2 className="font-semibold text-lg mb-2 text-indigo-700 capitalize">
+                      {post.title}
+                    </h2>
+                    <p className="text-gray-600">
+                      {post.body.slice(0, 100)}...
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Infinite Scroll Loader */}
+            {visibleCount < filteredPosts.length && (
+              <div
+                ref={loaderRef}
+                className="mt-6 text-center text-gray-500 animate-pulse"
+              >
+                Loading more posts...
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <footer className="text-center mt-6 text-sm text-gray-500">
+    
+      </footer>
+    </div>
+  );
+}
+
+export default App;
